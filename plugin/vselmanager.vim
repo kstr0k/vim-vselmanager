@@ -442,19 +442,58 @@ command! VselmanagerEditDB execute 'edit' g:vselmanager_DBFile
 "}}}
 
 " Mappings: "{{{
-" Set the <Plug> specific maps
-vnoremap <unique> <script> <Plug>VselmanagerVMarkSave <SID>VMarkSave
-nnoremap <unique> <script> <Plug>VselmanagerVMarkLoad <SID>VMarkLoad
-" Set the calls to the functions, local to this script
-vnoremap <SID>VMarkSave    <esc>:call <SID>VMarkSave()<CR>
-nnoremap <SID>VMarkLoad      :call <SID>VMarkLoad()<CR>
-" And set the default maps! (without interfering with the user's preferences)
-if !hasmapto("<Plug>VselmanagerVMarkSave")
-    vmap <unique> m <Plug>VselmanagerVMarkSave
-endif
-if !hasmapto("<Plug>VselmanagerVMarkLoad")
-    nmap <unique> < <Plug>VselmanagerVMarkLoad
-endif
+" Mapping utils:  "{{{
+function! s:MapInModes(map_in, rec, mod, k, to) abort
+    if a:map_in is# 'nv'
+        " per help: map for all three, unmap for o
+        execute (a:rec .. 'map') a:mod a:k a:to
+        execute 'ounmap' a:k
+    else
+        execute (a:map_in .. a:rec .. 'map') a:mod a:k a:to
+    endif
+endfun
+function! s:MapSIDPlug(map_in, plug, to)
+    " <SID> mappings for hygiene, see help or
+    " https://www.reddit.com/r/vim/comments/9djp9t/question_about_using_sid_and_plug_in_mappings/
+    call s:MapInModes(a:map_in, 'nore', '<unique> <script>', '<Plug>' .. a:plug, '<SID>' .. a:plug)
+    call s:MapInModes(a:map_in, 'nore', '',                  '<SID>'  .. a:plug,  a:to)
+endfun
+function! s:MapSIDPlugCmd(mapcmd, plug, tocmd)
+    return s:MapSIDPlug(a:mapcmd, a:plug, '<Cmd>' .. a:tocmd .. '<CR>')
+endfun
+"}}}
+" Set the <Plug> specific maps  "{{{
+function! s:SetPlugMappings()
+    let M = { mm, plug, to, tosfx -> s:MapSIDPlugCmd(mm, plug, 'call <SID>' .. to .. '<SID>NonDefaultReg()' .. tosfx) }
+    call M( 'v', 'VselmanagerSaveVMark',      'VMarkSave(', ')')
+    call M('nv', 'VselmanagerLoadVMark',      'VMarkLoad(', ')')
+    call M( 'n', 'VselmanagerDelVMark',       'VMarkDel(', ')')
+    call M('nv', 'VselmanagerPutAVMark',      'VMarkPut(', ', "p")')
+    call M('nv', 'VselmanagerPutBVMark',      'VMarkPut(', ', "P")')
+    let M = { mm, plug, to -> s:MapSIDPlugCmd(mm, plug, to) }
+    call M('nv', 'VselmanagerYankVMark',      'call <SID>VMarkYank("", v:register)')
+    call M('nv', 'VselmanagerHistMR',         '0 VselmanagerHistNext')
+    call M('nv', 'VselmanagerHistNext',       'VselmanagerHistForward   v:count ?? 1')
+    call M('nv', 'VselmanagerHistPrev',       'VselmanagerHistForward -(v:count ?? 1)')
+endfun
+call s:SetPlugMappings()
+"}}}
+function! g:VselmanagerSetDefaultMaps(pfx, ignore_mapped = v:true, uniq = v:true) abort  "{{{
+    let unique = a:uniq ? '<unique>' : ''
+    let Avail = { to -> a:ignore_mapped || ! hasmapto( to ) }
+    let M = { mm, k, to -> Avail('<Plug>' .. to) ? s:MapInModes(mm, '', unique, a:pfx .. k, '<Plug>' .. to ) : v:false }
+
+    call M( 'v', 'm',          'VselmanagerSaveVMark')
+    call M('nv', '`',          'VselmanagerLoadVMark')
+    call M( 'n', 'd',          'VselmanagerDelVMark')
+    call M('nv', 'p',          'VselmanagerPutAVMark')
+    call M('nv', 'P',          'VselmanagerPutBVMark')
+    call M('nv', 'y',          'VselmanagerYankVMark')
+    call M('nv', '<C-I>',      'VselmanagerHistNext')
+    call M('nv', '<C-O>',      'VselmanagerHistPrev')
+    call M( 'n', 'gv',         'VselmanagerHistMR')
+endfun  "}}}
+call g:VselmanagerSetDefaultMaps('<Leader>v')
 "}}}
 
 " see :help write-plugin "{{{
