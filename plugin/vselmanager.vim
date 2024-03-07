@@ -37,7 +37,7 @@ endfun
 " Options & globals: "{{{
 " Database location
 if !exists('g:vselmanager_DBFile')
-    let g:vselmanager_DBFile = $HOME .. '/.vim-vis-mark'
+    let g:vselmanager_DBFile = fnamemodify('~/', ':p') .. '.vim-vselmanager.json'
 endif
 if !exists('g:vselmanager_exitVModeAfterMarking')
     let g:vselmanager_exitVModeAfterMarking = 1
