@@ -5,14 +5,14 @@
 
 " Previous Maintainer: Iago-lito <iago.bonnici@gmail.com>
 
-" lines for handling line continuation, according to :help write-plugin<CR> "{{{
-let s:save_cpo = &cpo
-set cpo&vim
-" make it possible for the user not to load the plugin, same source
-if exists("g:loaded_visualMarks")
+" see :help write-plugin "{{{
+if exists('g:loaded_vselmanager')
     finish
 endif
-let g:loaded_visualMarks = 1
+let g:loaded_vselmanager = 1
+
+let s:save_cpo = &cpo
+set cpo&vim
 "}}}
 
 " Utilities to persist a variable to a file "{{{
@@ -32,197 +32,256 @@ endfun
 " http://stackoverflow.com/q/31348782/3719101
 "}}}
 
-" Options:
-" the file where the big dictionnary will be stored.
-let g:visualMarks_marksFile = $HOME . "/.vim-vis-mark"
-let g:visualMarks_exitVModeAfterMarking = 1
+function! s:NonDefaultReg() abort
+    return v:register is# '"' ? '' : v:register
+endfun
 
-let g:filen = g:visualMarks_marksFile
-" the big dictionnary itself:
+function! s:ListToCompleter(ll) abort
+    return { s1, s2, s3 -> join(a:ll, "\n") }
+endfun
+
+" Options & globals: "{{{
+" Database location
+if !exists('g:vselmanager_DBFile')
+    let g:vselmanager_DBFile = $HOME .. '/.vim-vis-mark'
+endif
+if !exists('g:vselmanager_exitVModeAfterMarking')
+    let g:vselmanager_exitVModeAfterMarking = 1
+endif
+let s:vselmanager_unnamedPrefix = 'unnamed:'
+"}}}
+
+" the big dictionary itself:
 " Its organization is simple:
 "  - each *key* is the full path to a file
-"  - each *entry* is also a dictionnary, for which:
-"      - each *key* is a mark identifier
-"      - each *entry* is the position of the recorded selection, a list:
+"  - each *value* is also a dictionary, for which:
+"      - the *key* is a mark identifier
+"      - the *value* is the position of the recorded selection, a list:
 "           - [startLine, startColumn, endLine, endColumn]
-if filereadable(g:filen)
-    let g:visualMarks = s:ReadVariable(g:filen)
-else
-    " create the file if it does not exist
-    let g:visualMarks = {}
-    call s:SaveVariable(g:visualMarks, g:filen)
-endif
-
-" Here is the function choosing a string to identify the dictionnary entry. This
-" string is either the absolute file path or a special chain + the buffer id for
-" unnamed buffers:
-" These special entries will be deleted from the dictionnary on BufDelete.
-let g:visualMarks_unnamedPrefix = "unnamed:"
-function! s:DictionnaryEntry() "{{{
-
-    " The entry is the current absolute file path
-    let entry = expand('%:p')
-
-    if len(entry) == 0
-        " If the file path is empty (for example, if it is an unnamed buffer),
-        " give it something else.
-        let entry = g:visualMarks_unnamedPrefix . bufnr('%')
-    endif
-
-    return entry
-
-endfunction
-"}}}
-
-" Here is the function whose responsibility is to clean the dictionnary on
-" BufDelete so that the marks in unnamed buffers don't get persistent.
-function! s:CleanDictionnary() "{{{
-
-    " WATCH OUT: during 'BufDelete', the '%'-pointed buffer might not be the one
-    " being deleted.. thus the <afile> and <abuf>
-    let filePath = expand('<afile>:p')
-    let bufferID = expand('<abuf>')
-    if len(filePath) > 0
-        " then the buffer has a name and so there is no cleaning to do.
-        return
-    endif
-
-    " then a unnamed buffer is being deleted, remove its entry from the
-    " dictionnary:
-    let entry = g:visualMarks_unnamedPrefix . bufferID
-    " it might not exist if no mark has been recorded in this buffer
-    if has_key(g:visualMarks, entry)
-        unlet g:visualMarks[entry]
-        call s:SaveVariable(g:visualMarks, g:filen)
-    endif
-
-endfunction
-"}}}
-augroup VisualMarks_Cleanup
-    autocmd!
-    autocmd BufDelete * call s:CleanDictionnary()
-augroup END
-
-" This is the function setting a mark, called from visual mode.
-function! s:VisualMark() "{{{
-    " get the entry:
-    let entry = s:DictionnaryEntry()
-
-    " get the mark ID
-    let mark = s:GetVisualMarkInput("mark selection ")
-
-    " retrieve the position starting the selection
-    normal! gvo
-    let currentmode = mode()
-    " This comparison is case-insensitive
-    if currentmode ==? "\<C-V>"
-      let visualMode = "blk_vis"
-    "This comparison is case-sensitive
-    elseif currentmode ==# "V"
-      let visualMode = "line_vis"
-    else
-      let visualMode = "char_vis"
-    endif
-    let [startLine, startCol, startOff] = getpos('.')[1:3]
-    let startCol = startCol + startOff
-
-    " retrieve the position ending the selection
-    normal! o
-    let [endLine, endCol, endOff] = getpos('.')[1:3]
-    let endCol = endCol + endOff
-
-    " do whatever the user likes
-    if g:visualMarks_exitVModeAfterMarking
-        exec "normal! \<esc>"
-    endif
-
-    " update the dictionnary:
-    " Initialize the file entry if didn't existed yet:
-    if !has_key(g:visualMarks, entry)
-        let g:visualMarks[entry] = {}
-    endif
-    " and fill it up!
-    let g:visualMarks[entry][mark] = [startLine, startCol
-                                     \ , endLine, endCol
-                                     \ , visualMode]
-
-    " and save it to the file. But I am sure we don't need to do this each time.
-    call s:SaveVariable(g:visualMarks, g:filen)
+" Dictionary ops: {{{
+function! s:NoNameCanonName(bufnum) abort
+    return s:vselmanager_unnamedPrefix .. a:bufnum
 endfun
-"}}}
-
-" This is the function retrieving a marked selection, called from normal mode.
-function! s:GetVisualMark() "{{{
-    " get the entry:
-    let entry = s:DictionnaryEntry()
-
-    " get the mark ID
-    let mark = s:GetVisualMarkInput("restore selection ")
-
-    " retrieve the latest version of the dictionnary. (No need each time?)
-    let g:visualMarks = s:ReadVariable(g:filen)
-
-    " check whether the mark has already been recorded, then put the flag down.
-    let noSuchMark = 1
-    if has_key(g:visualMarks, entry)
-        if has_key(g:visualMarks[entry], mark)
-            let noSuchMark = 0
-        endif
+function! s:DBSave() abort
+    call s:SaveVariable(g:vselmanagerDB, g:vselmanager_DBFile)
+endfun
+function! s:DBLoad() abort
+    let g:vselmanagerDB = s:ReadVariable(g:vselmanager_DBFile)
+endfun
+function! s:DBReset() abort
+    let g:vselmanagerDB = {}
+    call s:DBSave()
+endfun
+function! s:DBLookup(fname, mark) abort
+    let fdict = g:vselmanagerDB->get(a:fname, {})
+    return fdict->get(a:mark, [])
+endfun
+function! s:DBAdd(fname, mark, val) abort
+    if !has_key(g:vselmanagerDB, a:fname)
+        let g:vselmanagerDB[a:fname] = {}
     endif
-
-    if noSuchMark
-        echom "no Such mark " . mark . " for this buffer."
+    let g:vselmanagerDB[a:fname][a:mark] = a:val
+endfun
+function! s:DBAddAndSave(fname, mark, val) abort
+    call s:DBAdd(a:fname, a:mark, a:val)
+    call s:DBSave()
+endfun
+function! s:DBRemove(fname, mark) abort  "{{{
+    if ! has_key(g:vselmanagerDB, a:fname)
+        return 0
+    endif
+    if empty(a:mark)
+        call remove(g:vselmanagerDB, a:fname)
     else
-        " Then we can safely get back to this selection!
-        let coordinates = g:visualMarks[entry][mark]
-        let visualMode = coordinates[4]
-        "move to the start pos, go to visual mode, and go to the end pos
-        " + recursively open folds, just enough to see the selection
-        normal! zv
-        call cursor(coordinates[0], coordinates[1])
-        "enter visual mode to select the rest
-        if visualMode ==? "blk_vis"
-          exec "normal! zv\<c-v>"
-        elseif visualMode ==? "line_vis"
-          exec "normal! zvV"
+        let fdict = g:vselmanagerDB[a:fname]
+        if has_key (fdict, a:mark)
+            call remove(fdict, a:mark)
+            if empty(fdict)
+                call remove(g:vselmanagerDB, a:fname)
+            endif
         else
-          exec "normal! zvv"
+            return 0
         endif
-        call cursor(coordinates[2], coordinates[3])
     endif
-
-    " And that's it! :)
+    return 1
+endfun  "}}}
+function! s:DBRemoveAndSave(fname, mark) abort
+    if s:DBRemove(a:fname, a:mark)
+        call s:DBSave()
+        return v:true
+    endif
+    return v:false
+endfun
+function! g:VselmanagerDBInit() abort
+    if filereadable(g:vselmanager_DBFile)
+        call s:DBLoad()
+    else
+        " create the file if it does not exist
+        call s:DBReset()
+    endif
 endfun
 "}}}
 
-" Here is the function retrieving user input characterizing the mark. It returns
-" an appropriate key for the dictionnary.
-" For now, it uses `input` with a custom prompt message, and this is why it
-" requires the enter key to be pressed
-function! s:GetVisualMarkInput(prompt) "{{{
-    echom a:prompt
+call g:VselmanagerDBInit()
+
+" Map current buffer to a dictionary key:  "{{{
+" This key is either the absolute path or a special prefix + the buffer id for
+" NoName buffers. NoName entries are deleted from the dictionary on BufDelete.
+function! g:VselmanagerBufCName(fname = '') abort
+    return a:fname ?? expand('%:p') ?? s:NoNameCanonName(bufnr())
+endfun
+"}}}
+
+function! g:VMarkNames(fname = g:VselmanagerBufCName()) abort
+    return g:vselmanagerDB->get(a:fname, {})->keys()
+endfun
+function! s:MarkedFNames() abort
+    return keys(g:vselmanagerDB)
+endfun
+
+" Remove NoName buffer selections on BufDelete so they aren't persisted.  "{{{
+" WATCH OUT: during 'BufDelete', the '%'-pointed buffer might not be the one
+" being deleted.. thus the <afile> and <abuf>
+function! s:OnBufDeleted() abort
+    if empty(expand('<afile>:p'))
+        " buffer being deleted is unnamed: remove its entry from dictionary:
+        let entry = s:NoNameCanonName(expand('<abuf>'))
+        call s:DBRemoveAndSave(entry, '')
+    endif
+endfun
+augroup Vselmanager_Cleanup
+    autocmd!
+    autocmd BufDelete * call s:OnBufDeleted()
+augroup END
+"}}}
+
+let s:vmode_encode = { "\<C-v>": 'blk_vis', 'V': 'line_vis', 'v': 'char_vis' }
+let s:vmode_decode = { 'blk_vis': "\<C-v>", 'line_vis': 'V', 'char_vis': 'v' }
+function! s:VModeEncode(mode) abort
+    return s:vmode_encode->get(a:mode, '')
+endfun
+function! s:VModeDecode(encmode) abort
+    return s:vmode_decode->get(a:encmode, '')
+endfun
+function! s:IsVisualMode(mode) abort
+    return has_key(s:vmode_encode, a:mode)
+endfun
+
+" This is the function asking the user for a mark name.
+function! s:AskVMark(prompt) abort "{{{
+    echomsg a:prompt
     let mark = nr2char(getchar())
+    if " " >=# mark
+        "echomsg 'aborted'  " of little value, and annoying
+        return ''
+    endif
     return mark
 endfun
 "}}}
 
-" And we're done. Now map it to something cool: "{{{
+function! s:TmpVMarkName(sfx) abort
+    return "\<C-g>__" .. a:sfx
+endfun
+
+function! s:EnterLastVMode() abort  "{{{
+    let vmode = s:VModeEncode(mode())
+    if empty(vmode)
+        normal! gv
+        let vmode = s:VModeEncode(mode())
+    endif
+    return vmode
+endfun  "}}}
+
+" Function for saving a visual selection, called from visual mode.  "{{{
+function! s:VMarkSave(mark = '') abort
+    let mark = a:mark ?? s:AskVMark('save selection to: ')
+    if empty(mark)
+        return
+    endif
+
+    call s:SelectionSave(g:VselmanagerBufCName(), mark)
+
+    if g:vselmanager_exitVModeAfterMarking
+        execute "normal! \<esc>"
+    endif
+endfun
+
+function! s:SelectionSave(fname, mark) abort
+    let vmode = s:EnterLastVMode()
+    if empty(vmode)
+        throw 'no previous selection for this buffer'
+    endif
+
+    " retrieve selection start
+    let [startLine, startCol, startOff] = getpos('v')[1:3]
+    let startCol += startOff
+
+    " retrieve selection end
+    let [endLine, endCol, endOff] = getpos('.')[1:3]
+    let endCol += endOff
+
+    " update the dictionary
+    call s:DBAdd(a:fname, a:mark, [startLine, startCol, endLine, endCol, vmode])
+
+endfun
+"}}}
+
+" Function for restoring a visual selection, called from normal mode.  "{{{
+function! s:VMarkLoad(mark = '') abort
+    let mark = a:mark ?? s:AskVMark('restore selection from: ')
+    if empty(mark)
+        return
+    endif
+
+    try
+        call s:SelectionLoad(g:VselmanagerBufCName(), mark)
+    catch /.*/
+        echohl ErrorMsg | echomsg v:exception | echohl None
+        return
+    endtry
+endfun
+
+function! s:SelectionLoad(fname, mark) abort
+    if s:IsVisualMode(mode())
+        " exit previous visual mode
+        execute "normal! \<Esc>"
+    endif
+    let coordinates = s:DBLookup(a:fname, a:mark)
+    if empty(coordinates)
+        throw 'selection does not exist for buffer: ' .. a:mark
+    else
+        let vmode = coordinates[4]
+        "move to start pos; enter visual mode; go to the end pos
+        " + recursively open folds, just enough to see the selection
+        execute "normal! zv"
+        call cursor(coordinates[0], coordinates[1])
+        "enter visual mode to select the rest
+        execute "normal! zv" .. s:VModeDecode(vmode)
+        call cursor(coordinates[2], coordinates[3])
+    endif
+endfun
+"}}}
+
+" Mappings: "{{{
 " Set the <Plug> specific maps
-vnoremap <unique> <script> <Plug>VisualMarksVisualMark <SID>VisualMark
-nnoremap <unique> <script> <Plug>VisualMarksGetVisualMark <SID>GetVisualMark
+vnoremap <unique> <script> <Plug>VselmanagerVMarkSave <SID>VMarkSave
+nnoremap <unique> <script> <Plug>VselmanagerVMarkLoad <SID>VMarkLoad
 " Set the calls to the functions, local to this script
-vnoremap <SID>VisualMark    <esc>:call <SID>VisualMark()<CR>
-nnoremap <SID>GetVisualMark      :call <SID>GetVisualMark()<CR>
+vnoremap <SID>VMarkSave    <esc>:call <SID>VMarkSave()<CR>
+nnoremap <SID>VMarkLoad      :call <SID>VMarkLoad()<CR>
 " And set the default maps! (without interfering with the user's preferences)
-if !hasmapto("<Plug>VisualMarksVisualMark")
-    vmap <unique> m <Plug>VisualMarksVisualMark
+if !hasmapto("<Plug>VselmanagerVMarkSave")
+    vmap <unique> m <Plug>VselmanagerVMarkSave
 endif
-if !hasmapto("<Plug>VisualMarksGetVisualMark")
-    nmap <unique> < <Plug>VisualMarksGetVisualMark
+if !hasmapto("<Plug>VselmanagerVMarkLoad")
+    nmap <unique> < <Plug>VselmanagerVMarkLoad
 endif
 "}}}
 
-" lines for handling line continuation, according to :help write-plugin<CR> "{{{
+" see :help write-plugin "{{{
 let &cpo = s:save_cpo
 unlet s:save_cpo
 "}}}
+
+
+" vim: set ts=8 sts=4 sw=4 expandtab foldmethod=marker :
