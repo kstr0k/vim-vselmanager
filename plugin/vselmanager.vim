@@ -20,16 +20,10 @@ function! s:SaveVariable(val, file) abort
     " writefile() only takes lists, so wrap arg
     call writefile([json_encode(a:val)], a:file)
 endfun
-" And its other side: restore a variable from a file:
-function! s:ReadVariable(file)
-    " don't forget to unwrap it!
-    let recover = readfile(a:file)[0]
-    " watch out, it is so far just a string, make it what it should be:
-    execute "let result = " . recover
-    return result
+function! s:ReadVariable(file) abort
+    " unwrap list returned by readfile() from single-line file
+    return json_decode(readfile(a:file)[0])
 endfun
-" Cool, isn't it? Thank you VanLaser from the Stack!
-" http://stackoverflow.com/q/31348782/3719101
 "}}}
 
 function! s:NonDefaultReg() abort
