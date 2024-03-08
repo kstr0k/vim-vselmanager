@@ -13,65 +13,10 @@ endif
 let g:loaded_visualMarks = 1
 "}}}
 
-" This small vimScript just wants to provide the following feature:
-" - - - Save visually selected blocks by associating them to custom marks. - - -
-" Just like with ma in normal mode, to mark the position of the cursor, then `a
-" to retrieve it, you would mark visually selected areas then get them back in a
-" few keystrokes.
-"
-" I shall thank here Steven Hall for having launched this on StackOverflow :)
-" http://stackoverflow.com/q/31296394/3719101
-" Feel free to contribute of course.
-"
-" The way this works so far:
-"   - the global variable g:visualMarks is a dictionnary whose keys are the
-"     marks and whose entries are the position of the start/end of the
-"     selection.
-"   - the function VisualMark(), when called from visual mode, waits for input
-"     from the user (which mark to use), and saves the current coordinates of
-"     the selected area to the dictionnary.
-"   - the function GetVisualMark(), when called from normal mode, waits for
-"     input from the user (which mark to retrieve), then enters visual mode and
-"     retrieves the previously marked selection.
-"
-" Things that are still missing, in my opinion:
-" TODO:
-"   - the no-such-mark warning still requires the user to press Enter. Is it a
-"     good reason to remove the prompts before calling `nchar`?
-"   - utility functions to clean the dictionnary, change filenames, move files,
-"     etc. (truly needed?)
-"   - avoid saving and reading the dictionary on each call to the functions.
-"     Better use an `autocmd VimEnter, VimLeave`? Yet it would be less safe?
-"     Does it slow the process down that much?
-" DONE:
-"   - Unnamed buffers are given special entries to the dictionnary, and this
-"     entry is cleaned up on BufDelete so that there is no persistence from one
-"     unnamed buffer to another. Each unnamed buffer is identified by its
-"     `bufnr()`.
-"   - added doc/tags to .gitignore
-"   - use and save/read a `dictionary`
-"   - warn the user when trying to get a unexistent mark
-"   - make the marks specific to each file.
-"   - find the file in one's home whatever name one has ;)
-"   - corrected a bug due to unconsistent variable names `mark` vs `register`
-"   - corrected an inversion of `start` and `end` of the selection
-"   - when restoring selection in a folded block, recursively unfold to show it
-"   - choose whether or not leaving visual mode after having set a mark
-"   - make the warning softer
-"   - optional file location for the file
-"   - save the type of visual mode? (v, V, <c-v>)
-"   - made all this a Pathogen-friendly Vim plugin
-"   - made the functions local to the script (s:, <SID>), added <Plug> maps
-"   - documented.
-"
-" This DOES begin to look like something! :)
-
-" Here we go.
-
-" A kind utility function to save a vimScript variable to a file? "{{{
-function! s:SaveVariable(var, file)
-    " the `writefile` function only take lists, so wrap it in a list
-    call writefile([string(a:var)], a:file)
+" Utilities to persist a variable to a file "{{{
+function! s:SaveVariable(val, file) abort
+    " writefile() only takes lists, so wrap arg
+    call writefile([json_encode(a:val)], a:file)
 endfun
 " And its other side: restore a variable from a file:
 function! s:ReadVariable(file)
