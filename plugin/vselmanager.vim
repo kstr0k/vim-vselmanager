@@ -1,7 +1,9 @@
-" Vim global plugin for saving and recovering visually selected text areas
-" Last Change:  2015/9/30
-" Maintainer:   Iago-lito <iago.bonnici@gmail.com>
-" License:      This file is placed under the GNU PublicLicense 2.
+" Vim plugin for saving and restoring the visual selection
+" Last Change:  2024-03-31
+" Maintainer:   Alin Mr <almr.oss@outlook.com>
+" License:      GPL 2: https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+
+" Previous Maintainer: Iago-lito <iago.bonnici@gmail.com>
 
 " lines for handling line continuation, according to :help write-plugin<CR> "{{{
 let s:save_cpo = &cpo
