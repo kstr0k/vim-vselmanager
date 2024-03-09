@@ -115,6 +115,8 @@ endfun
 function! g:VselmanagerDBInit() abort
     if filereadable(g:vselmanager_DBFile)
         call s:DBLoad()
+        " remove entries for unnamed buffers: their bufnr()s don't survive a Vim restart
+        call filter(g:vselmanagerDB, { key -> key !~# ('^' .. s:vselmanager_unnamedPrefix) })
     else
         " create the file if it does not exist
         call s:DBReset()
@@ -221,7 +223,7 @@ function! s:SelectionSave(fname, mark) abort
     let endCol += endOff
 
     " update the dictionary
-    call s:DBAdd(a:fname, a:mark, [startLine, startCol, endLine, endCol, vmode])
+    call s:DBAddAndSave(a:fname, a:mark, [startLine, startCol, endLine, endCol, vmode])
 
 endfun
 "}}}
