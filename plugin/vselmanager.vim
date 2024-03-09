@@ -415,6 +415,32 @@ function! s:VMarkDelAll(fname = '') abort
 endfun
 "}}}
 
+" Command helpers: "{{{
+function! s:VMarkComplete(Arg, Cmd, Pos) abort
+    return join(g:VMarkNames(), "\n")
+endfun
+function! s:MarkedFNameComplete(Arg, Cmd, Pos) abort
+    return join(s:MarkedFNames(), "\n")
+endfun
+"}}}
+
+
+" Commands: "{{{
+command! -nargs=1 -complete=custom,s:VMarkComplete VselmanagerLoad call s:VMarkLoad(<q-args>)
+command! -nargs=1 -complete=custom,s:VMarkComplete VselmanagerSave call s:VMarkSave(<q-args>)
+command! -nargs=1 -complete=custom,s:VMarkComplete VselmanagerPutA call s:VMarkPut(<q-args>, 'p')
+command! -nargs=1 -complete=custom,s:VMarkComplete VselmanagerPutB call s:VMarkPut(<q-args>, 'P')
+command! -nargs=1 -complete=custom,s:VMarkComplete VselmanagerDel  call s:VMarkDel(<q-args>)
+command! VselmanagerDelAll call s:VMarkDelAll('')
+command! -nargs=1 -complete=custom,s:MarkedFNameComplete VselmanagerForgetFile call s:VMarkDelAll(<q-args>)
+command! -nargs=1 VselmanagerHistForward call s:SelectionLoadNext(<args>)
+command! -count=1 VselmanagerHistNext call s:SelectionLoadNext(<count>)
+command! -count=1 VselmanagerHistPrev call s:SelectionLoadNext(- <count>)
+command! -nargs=1 -complete=custom,s:VMarkComplete VselmanagerSwapVisual call s:VMarkSwapVisual(<q-args>)
+command! -nargs=1 -complete=custom,s:MarkedFNameComplete VselmanagerEditFile execute 'edit' <q-args>
+command! VselmanagerEditDB execute 'edit' g:vselmanager_DBFile
+"}}}
+
 " Mappings: "{{{
 " Set the <Plug> specific maps
 vnoremap <unique> <script> <Plug>VselmanagerVMarkSave <SID>VMarkSave
