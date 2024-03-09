@@ -169,16 +169,41 @@ function! s:IsVisualMode(mode) abort
     return has_key(s:vmode_encode, a:mode)
 endfun
 
+" User interaction  "{{{
+if exists('*popup_notification')
+function! s:InfoMsg(hl, msg) abort
+    call popup_notification(a:msg, { 'highlight': a:hl })
+endfun
+else
+function! s:InfoMsg(hl, msg) abort
+    execute 'echohl' a:hl | echomsg a:msg | echohl None
+endfun
+endif
+
+function! s:InputFromList(prompt, opts) abort
+    call inputsave()
+    let optnum = inputlist([a:prompt] + mapnew(a:opts, { k, v -> (1 + k) .. ': ' .. v })) - 1
+    call inputrestore()
+    return (optnum < 0) || (optnum > len(a:opts)) ? '' : a:opts[optnum]
+endfun
+
+function! s:InputChar(prompt) abort
+    echohl Question | echon a:prompt | echohl None
+    call inputsave()
+    let ch = nr2char(getchar())
+    call inputrestore()
+    return ch
+endfun
+
 " This is the function asking the user for a mark name.
 function! s:AskVMark(prompt) abort "{{{
-    echomsg a:prompt
-    let mark = nr2char(getchar())
-    if " " >=# mark
-        "echomsg 'aborted'  " of little value, and annoying
-        return ''
+    let mark=s:InputChar(a:prompt)
+    if "\<Tab>" is# mark
+        let mark = s:InputFromList('', g:VMarkNames())
     endif
-    return mark
+    return " " ># mark ? '' : mark
 endfun
+"}}}
 "}}}
 
 function! s:TmpVMarkName(sfx) abort
