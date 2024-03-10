@@ -308,6 +308,74 @@ function! s:SelectionLoad(fname, mark) abort
 endfun
 "}}}
 
+function! s:SelectionLoadNext(delta = 1) abort  "{{{
+    let fname = g:VselmanagerBufCName()
+    let vmarks = g:VMarkNames(fname)
+    let nvmarks = len(vmarks)
+    if 0 is nvmarks
+        call s:InfoMsg('WarningMsg', 'no selections defined yet for this buffer')
+        return ''
+    endif
+    if ! exists('b:visualMarks_cycle_idx') || b:visualMarks_cycle_idx > nvmarks
+        " set cycling state to a sane value
+        let b:visualMarks_cycle_idx = 0
+    endif
+    " compute (non-negative) modulo (vim's '%' is actually a remainder)
+    let b:visualMarks_cycle_idx = (b:visualMarks_cycle_idx + a:delta) % nvmarks
+    let b:visualMarks_cycle_idx = b:visualMarks_cycle_idx < 0 ? (b:visualMarks_cycle_idx + nvmarks) : b:visualMarks_cycle_idx
+    let vmark = vmarks[b:visualMarks_cycle_idx]
+    call s:SelectionLoad(fname, vmark)
+    return vmark
+endfun  "}}}
+
+function! s:VMarkSwapVisual(mark) abort  "{{{
+    let fname = g:VselmanagerBufCName()
+    let vmode = s:EnterLastVMode()
+    let mark = s:AskVMark('swap visual with vmark: ', a:mark, v:true, fname)
+    if empty(mark) | return | endif
+
+    let tmpmark1 = s:TmpVMarkName('swap1')  " initial gv position
+    let tmpmark2 = s:TmpVMarkName('swap2')  " final   gv position
+    let sv_reg = @"
+    try
+        call s:SelectionSave(fname, tmpmark1)
+        normal! y
+        call s:SelectionLoad(fname, mark)
+        if vmode isnot mode()
+            call s:InfoMsg('WarningMsg', 'mismatched visual modes')
+            call s:SelectionLoad(fname, tmpmark1)
+            return
+        endif
+        normal! p
+        call s:SelectionSave(fname, tmpmark2)
+        call s:SelectionLoad(fname, tmpmark1)
+        normal! p
+        call s:SelectionSave(fname, mark)
+        call s:SelectionLoad(fname, tmpmark2)
+    finally
+        let @" = sv_reg
+        call s:DBRemove(fname, tmpmark1)
+        call s:DBRemove(fname, tmpmark2)
+        call s:DBSave()
+    endtry
+endfun  "}}}
+
+" Functions to delete marks  "{{{
+function! s:VMarkDel(mark, fname = '') abort
+    let fname = g:VselmanagerBufCName(a:fname)
+    let mark = s:AskVMark('remove visual mark: ', a:mark, v:true, fname)
+    if ! empty(mark)
+        call s:DBRemoveAndSave(fname, mark)
+    endif
+endfun
+function! s:VMarkDelAll(fname = '') abort
+    let fname = g:VselmanagerBufCName(a:fname)
+    if ! s:DBRemoveAndSave(fname, '')
+        call s:InfoMsg('WarningMsg', 'no selections saved for buffer ' .. fname)
+    endif
+endfun
+"}}}
+
 " Mappings: "{{{
 " Set the <Plug> specific maps
 vnoremap <unique> <script> <Plug>VselmanagerVMarkSave <SID>VMarkSave
