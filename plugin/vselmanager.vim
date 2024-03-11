@@ -157,8 +157,8 @@ augroup Vselmanager_Cleanup
 augroup END
 "}}}
 
-let s:vmode_encode = { "\<C-v>": 'blk_vis', 'V': 'line_vis', 'v': 'char_vis' }
-let s:vmode_decode = { 'blk_vis': "\<C-v>", 'line_vis': 'V', 'char_vis': 'v' }
+let s:vmode_encode = { "\<C-v>": "\<C-v>", 'V': 'V', 'v': 'v' }
+let s:vmode_decode = s:vmode_encode
 function! s:VModeEncode(mode) abort
     return s:vmode_encode->get(a:mode, '')
 endfun
