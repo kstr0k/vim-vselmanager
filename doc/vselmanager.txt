@@ -1,163 +1,243 @@
-*visualMarks.txt*                  Version 0.1           Last change: 2015-07-18
-
-                                  *VisualMarks*
-
-                Marking and restoring visually selected areas.
+*vselmanager.txt*	Save & restore visual selections
+                                                                   Version 0.2
 
 ==============================================================================
-CONTENTS                                                 *visualMarks-contents*
+CONTENTS                                                       *vselmanager-toc*
 
-   1. Introduction ....................... |visualMarks-introduction|
-   2. Usage .............................. |visualMarks-usage|
-   3. Default mappings ................... |visualMarks-mappings|
-   4. Custom settings .................... |visualMarks-settings|
-   5. License ............................ |visualMarks-license|
-   6. Bugs ............................... |visualMarks-bugs|
-   7. Contributing ....................... |visualMarks-contribute|
-   8. Changelog .......................... |visualMarks-changelog|
-   9. Credits ............................ |visualMarks-credits|
-
-==============================================================================
-1. Introduction                                      *visualMarks-introduction*
-
-    This plugin allows you saving visually selected areas to single-character
-marks, then restoring them later from anywhere in your file, just like Vim's
-native regular mark registers do.
+- INTRODUCTION                |vselmanager-introduction|
+- USAGE                       |vselmanager-usage|
+- MAPPINGS                    |vselmanager-mappings|
+- VMARK NAMES                 |vselmanager-vmark-names|
+- COMMANDS                    |vselmanager-commands|
+- SETTINGS                    |vselmanager-settings|
+- INSTALLING                  |vselmanager-install|
+- LICENSE                     |vselmanager-license|
+- CREDITS                     |vselmanager-credits|
 
 ==============================================================================
-2. Usage                                                    *visualMarks-usage*
+INTRODUCTION                                          *vselmanager-introduction*
 
-In visual mode, if you wish to save your selection to the mark `a`, just type:
-
-    `ma`
-
-Then do anything you like. When you are somewhere else in your file and want
-to select again the same area, just type in normal mode:
-
-    `<a`
-
-And you will enter visual mode back with the saved selection. You may choose
-any single-character mark you like: `a`, `b`, ` `, `&`, `$` etc.
-
-This plugin is rather young. It currently features:
-
-    - no overwriting of Vim's regular marks and registers
-    - one set of marks for each file you are working on
-    - persistent marks after closing Vim
-    - restoring type of visual mode (v, V, <c-v>)
-
-And we hope it will support soon:
-
-    - working along with vim-signature plugin
-      (https://github.com/kshenoy/vim-signature)
-    - anything you would wish it to support. Please drop us a line at
-      https://github.com/iago-lito/vim-visualMarks/issues
+This plugin lets you save visual selections to named "visual marks" ("vmarks")
+and later restore them, just as Vim's native marks do for cursor positions
+(but they are entirely separate entities). Vmark names are per-file (not
+global) and persistent.
 
 ==============================================================================
-3. Default Mappings                                      *visualMarks-mappings*
+USAGE                                                        *vselmanager-usage*
 
-Visual mode:  ~
->
-    <Plug>VisualMarksVisualMark
-<
-        Enter a mark and save the currently selected area to this mark.
+Assuming a standard setup (|vselmanager-install|): in visual mode, to save the
+selection to vmark "a", type >
+    \vma
 
-Normal mode: ~
->
-    <Plug>VisualMarksGetVisualMark
-<
-        Enter a mark then enter visual mode over the previously saved area.
+To later re-select the same area, type (in normal mode): >
+    \v`a
+and you'll be back in visual mode with the saved selection. Use lowercase
+letters or <Space> as vmark names (details in |vselmanager-vmark-names|).
 
-Default mappings: ~
->
-    vmap m <Plug>VisualMarksVisualMark
-    nmap < <Plug>VisualMarksGetVisualMark
-<
-        If you have already mapped these keys to something else, visualMark
-        won't define any mappings and you will have to set them yourself.
+Pressing <Tab> enters full name-editing mode with completion
+(|vselmanager-input-name|). Alternatively, the mappings can be prefixed with a
+register (e.g. "a\vm instead of \vma -- |vselmanager-register-mappings|).
 
-==============================================================================
-4. Custom Settings                                       *visualMarks-settings*
+See |vselmanager-mappings| and |vselmanager-commands| for more actions.
 
-File location: ~
+------------------------------------------------------------------------------
+FEATURES
 
-    VisualMarks saves a dictionnary containing your marked areas to the disk.
-You can choose the location of this file by setting a custom path with this
-option: >
-
-    let g:visualMarks_marksFile = $HOME . "/.vim/vim-visualMarks"
-
-Behavior: ~
-
-You may or may not want visualMarks to exit visual mode after having set a
-mark. If you do, set this option to 1, otherwise 0: >
-
-    let g:visualMarks_exitVModeAfterMarking = 1
+- no clobbering of Vim's regular marks and registers
+- per-file vmarks
+- vmarks persist after closing Vim
+- vmarks save / restore the visual mode (|v|, |V|, |Ctrl-V|) of selections
+- past-end-of-line ragged visual block selections are properly handled
 
 ==============================================================================
-5. License                                                *visualMarks-license*
+MAPPINGS                                                  *vselmanager-mappings*
 
-    VisualMarks is released under the GPL2.
-    See https://www.gnu.org/licenses/gpl-2.0.html
+Most mappings require names (|vselmanager-vmark-names|) to operate on; see
+|vselmanager-input-name| and |vselmanager-register-mappings| for details on
+how the plugin requests these names from the user.
+
+------------------------------------------------------------------------------
+DEFAULT KEYS                     *VselmanagerSetDefaultMaps()*  *vselmanager-keys*
+
+These are set internally by calling the function >
+    :call g:VselmanagerSetDefaultMaps( g:vselmanager_mapPrefix )
+
+when the global prefix is set, which, assuming a "|<Leader>|v" prefix, results
+in the following mappings (the "mapping" column lists the suffix after
+"<Plug>Vselmanager")
+
+    modes  key         mapping-suffix  Action~
+     v     \vm         SaveVMark       `:VselmanagerSave`
+    nv     \v`         LoadVMark       `:VselmanagerLoad`
+    n      \vd         DelVMark        `:VselmanagerDel`
+    nv     \vp         PutAVMark       `:VselmanagerPutA`
+    nv     \vP         PutBVMark       `:VselmanagerPutB`
+    nv     \vy         YankVMark       |<Plug>VselmanagerYankVMark|
+    nv     \vgv        HistMR          `:VselmanagerHistNext` 0
+    nv     \v<Tab>     HistNext        `:VselmanagerHistNext`
+    nv     \v<C-O>     HistPrev        `:VselmanagerHistPrev`
+
+Set the preferred |g:vselmanager_mapPrefix| before the plugin loads (e.g. from
+vimrc). The function does not re-bind <Plug> mappings already bound to
+something else, so you can pre-bind some actions to other keys.
+
+If |g:vselmanager_mapPrefix| is undefined, the plugin installs no bindings
+upon loading. You can thus selectively map any or all actions manually.  You
+can also call |VselmanagerSetDefaultMaps()| at some later point in the startup
+sequence (e.g. from the |after-directory|).
+
+------------------------------------------------------------------------------
+MAP ACTIONS                                            *vselmanager-map-actions*
+
+- |vselmanager-keys| lists the associated command for most <Plug> mappings
+- |<Plug>VselmanagerYankVMark| is described below
+- all other <Plug> mappings ending in "VMark" operate on a single vmark name
+- the "HistNext" and "HistPrev" mappings take an optional [count] prefix
+  (1 if omitted)
+
+*<Plug>VselmanagerYankVMark*
+    Yank the contents of the vmark into a register. Unlike other single-vmark
+    mappings, if prefixed by a register (e.g. "a), that register will act as
+    the destionation. The name of the vmark is always obtained as outlined in
+    |vselmanager-input-name|. If this mapping is invoked without a register
+    prefix, the contents will be yanked into the unnamed register (").
 
 ==============================================================================
-6. Bugs                                                      *visualMarks-bugs*
+VMARK NAMES                                            *vselmanager-vmark-names*
 
-    If you experience any bugs or have feature requests, please open an issue
-on GitHub:
+Names can be arbitrary strings, except that:
+- names may not contain control chars (ASCII 0-31)
+- names longer than a single char are harder to input (see below)
 
-    https://github.com/iago-lito/vim-visualMarks/issues
+Additionally, some names are reserved and might be automatically assigned or
+overwritten by the plugin in the future:
+- numbers are reserved for vmark history
+- names starting with an Uppercase letter are reserved for global vmarks
+- the name "`" (backtick) is reserved for the most recently loaded vmark
 
-==============================================================================
-7. Contributing                                        *visualMarks-contribute*
+------------------------------------------------------------------------------
+INPUT A VMARK NAME                                      *vselmanager-input-name*
 
-    Fork the source repository on GitHub and send a pull request if you have
-any code improvements. We'll be happy to work with you :)
+When requesting a vmark name, the plugin first reads a single char, which is
+used immediately if such a vmark exists. <Esc>, <CR> or any control character
+except <Tab> cancel the operation. <Tab> enters full input mode, where names
+can be arbitrary strings and another <Tab> completes; again, <Esc> or entering
+an empty name cancels.
 
-Source repository: https://github.com/iago-lito/vim-visualMarks
+------------------------------------------------------------------------------
+REGISTER NAMES AS VMARKS                         *vselmanager-register-mappings*
 
-==============================================================================
-8. Changelog                                            *visualMarks-changelog*
-
-Next: ~
-
-    - adapt to indels
-      https://github.com/iago-lito/vim-visualMarks/issues/12
-    - support selection history
-      https://github.com/iago-lito/vim-visualMarks/issues/11
-    - improve `README.md` file
-    - working along with vim-signature plugin:
-      https://github.com/kshenoy/vim-signature
-
-Featured in the current commit: ~
-
-    - Mark selections in buffer with no file name
-
-Initial release 0.1: ~
-
-   - added documentation
-   - make all this a Pathogen-friendly Vim plugin
-   - save the type of visual mode (v, V, <c-v>)
-   - optional file location for the file with g:visualMarks_marksFile
-   - choose whether or not leaving visual mode after having set a mark with
-     g:visualMarks_exitVModeAfterMarking
-   - when restoring selection in a folded block, recursively unfold to show it
-   - make the marks specific to each file.
-   - warn the user when trying to get a unexistent mark
-   - save the marks in a VimScrip `dictionary` variable type
+Alternatively the mappings can be prefixed with a register, which acts purely
+as a vmark name (e.g.: "a\vm). This method bypasses the input mechanism used
+above (meaning such maps work in macros, don't echo any messages etc). On the
+other hand, the set of Vim register names (:help |registers|) is limited, so
+names created with another method might be unavailable as a prefix.
 
 ==============================================================================
-9. Credits                                                *visualMarks-credits*
+COMMANDS                                                  *vselmanager-commands*
 
-Authors: ~
+In the following, {vmark} is a vmark name (|vselmanager-vmark-names|).
 
-           Iago-lito   http://github.com/iago-lito
-         Steven Hall   http://github.com/hallzy
+*:VselmanagerSave* {vmark}
+    Save current / most recent (|gv|) visual selection to {vmark}
 
-Thanks to: ~
+*:VselmanagerLoad* {vmark}
+    Restore visual selection associated with {vmark}
 
-    VanLaser for saving and restoring VimScript variables to/from the disk:
-        http://stackoverflow.com/questions/31348782/
-    Steve Losh for this really, really useful book:
-        http://learnvimscriptthehardway.stevelosh.com/
+*:VselmanagerHistForward* {delta}                 *vselmanager-history-navigation*
+:[count]VselmanagerHistNext                               *:VselmanagerHistNext*
+:[count]VselmanagerHistPrev                               *:VselmanagerHistPrev*
+    Navigate forwards / backwards through vmarks in some unspecified order; it
+    may change if vmarks are added / deleted, and in-between Vim sessions, but
+    is otherwise stable. {delta} = 0 corresponds to the vmark most recently
+    loaded by "Hist" commands, -1 to the previous one and +1 to the next one.
+    {delta} can be any |expr|. The Next / Prev commands take a constant [count]
+    instead, which defaults to 1. It can precede or follow the command.
 
+*:VselmanagerDel*  {vmark}
+    Remove a previously saved vmark
+
+*:VselmanagerDelAll*
+    Remove all vmarks from the current buffer
+
+*:VselmanagerPutA* {vmark}
+*:VselmanagerPutB* {vmark}
+    Paste a vmark's contents After / Before the cursor (like |p| / |P|). In
+    visual mode, overwrite the current visual selection.
+
+*:VselmanagerForgetFile* {file}
+    Remove all vmarks from the specified file
+
+*:VselmanagerSwapVisual* {vmark}
+    Swap the current visual selection with that of {vmark}; update {vmark}
+    to point to the its new location (its corresponding text unchanged). The
+    final visual selection text is the same as the initial one (but moved to
+    the initial {vmark} location). Both visual selections should have the same
+    type (e.g. both char visual or both line visual) and not overlap.
+
+==============================================================================
+SETTINGS                                                  *vselmanager-settings*
+
+Settings should be defined before the plugin loads (e.g. from |vimrc|; see
+":help |startup|", ":help |load-plugin|").
+
+------------------------------------------------------------------------------
+DATABASE LOCATION                          *g:vselmanager_DBFile*
+
+The plugin stores all vmarks in a single JSON file. Its default path is >
+    let g:vselmanager_DBFile = fnamemodify('~/', ':p') .. '.vim-vselmanager.json'
+
+This template should be portable, in case you decide to change the path /
+basename.
+
+------------------------------------------------------------------------------
+DEFAULT MAP PREFIX                         *g:vselmanager_mapPrefix*
+
+Set to a prefix string to trigger automatic loading of default key mappings.
+Without it, no mappings are installed by default. See |vselmanager-keys|.
+Suggested: >
+    let g:vselmanager_mapPrefix = '<Leader>v'
+
+------------------------------------------------------------------------------
+BEHAVIOR AFTER SAVING A VMARK              *g:vselmanager_exitVModeAfterMarking*
+
+The plugin exits visual mode after saving a vmark if this global is set to 1
+(the default). Set it to 0 to remain in visual mode.
+
+==============================================================================
+INSTALLATION                                               *vselmanager-install*
+
+With the Vim 8+ built-in package system (:help |packages|):
+- clone (or symlink) the git repo under |'packpath'|
+- set the mapping prefix in vimrc (|g:vselmanager_mapPrefix|)
+- (re)start Vim and run |:helptags| ALL
+
+For example, in Bash: >
+    DIR=~/.vim/pack/vselmanager/start/
+    mkdir -p "$DIR"; cd "$DIR"
+    git clone "$VSELMANAGER_URL"  # replace with actual URL
+    echo "let g:vselmanager_mapPrefix = '<Leader>v'" >> ~/.vimrc
+    vim -c 'helptags ALL' -cq
+
+Or use your preferred plugin manager.
+
+==============================================================================
+LICENSE                                                    *vselmanager-license*
+
+Vselmanager is released under the GPL v2.
+
+See https://www.gnu.org/licenses/old-licenses/gpl-2.0.html
+
+==============================================================================
+CREDITS                                                    *vselmanager-credits*
+
+                          URL ~
+This repository           https://github.com/kstr0k/vim-vselmanager
+    Alin Mr.              http://github.com/mralusw/
+
+Original visualMarks      https://github.com/iago-lito/vim-visualMarks
+    Iago-lito             https://github.com/iago-lito/
+    Steven Hall           https://github.com/hallzy/
+
+
+vim:tw=78:ts=8:ft=help:norl:
