@@ -170,6 +170,11 @@ function! s:IsVisualMode(mode) abort
 endfun
 
 " User interaction  "{{{
+function! s:ClearPrompt() abort
+    echon "\r\r"
+    echon
+endfun
+
 if exists('*popup_notification')
 function! s:InfoMsg(hl, msg) abort
     call popup_notification(a:msg, { 'highlight': a:hl })
@@ -181,10 +186,13 @@ endfun
 endif
 
 function! s:InputFromList(prompt, opts) abort
+    let Compl = s:ListToCompleter(a:opts)
     call inputsave()
-    let optnum = inputlist([a:prompt] + mapnew(a:opts, { k, v -> (1 + k) .. ': ' .. v })) - 1
+    call feedkeys("\<Tab>", 't')  " 't' = as if typed
+    let ans = input(a:prompt, '', 'custom,' .. string(Compl))
+    call s:ClearPrompt()
     call inputrestore()
-    return (optnum < 0) || (optnum > len(a:opts)) ? '' : a:opts[optnum]
+    return ans
 endfun
 
 function! s:InputChar(prompt) abort
@@ -192,16 +200,31 @@ function! s:InputChar(prompt) abort
     call inputsave()
     let ch = nr2char(getchar())
     call inputrestore()
+    call s:ClearPrompt()
     return ch
 endfun
 
 " This is the function asking the user for a mark name.
-function! s:AskVMark(prompt) abort "{{{
-    let mark=s:InputChar(a:prompt)
-    if "\<Tab>" is# mark
-        let mark = s:InputFromList('', g:VMarkNames())
+function! s:AskVMark(prompt, val0 = '', existing = v:false, fname = g:VselmanagerBufCName(), vmarks = g:VMarkNames(a:fname)) abort "{{{
+    if a:existing && empty(a:vmarks)
+        call s:InfoMsg('WarningMsg', 'no selections saved for this buffer')
+        return ''
     endif
-    return " " ># mark ? '' : mark
+    let mark = a:val0 ?? s:InputChar(a:prompt)
+    if "\<Tab>" is# mark
+        let mark = s:InputFromList('', a:vmarks)
+    elseif a:existing && 0 > index(a:vmarks, mark)
+        let mark = s:InputFromList('no such name; ' .. a:prompt, a:vmarks)
+    endif
+    if " " ># mark
+        " bail out if empty, or control char at [0]
+        return ''
+    endif
+    if a:existing && 0 > index(a:vmarks, mark)
+        call s:InfoMsg('WarningMsg', 'buffer has no selection named: ' .. mark)
+        let mark = ''
+    endif
+    return mark
 endfun
 "}}}
 "}}}
