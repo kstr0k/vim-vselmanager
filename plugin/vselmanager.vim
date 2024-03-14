@@ -278,17 +278,13 @@ endfun
 
 " Function for restoring a visual selection, called from normal mode.  "{{{
 function! s:VMarkLoad(mark = '') abort
-    let mark = a:mark ?? s:AskVMark('restore selection from: ')
+    let fname = g:VselmanagerBufCName()
+    let mark = s:AskVMark('restore selection from: ', a:mark, v:true, fname)
     if empty(mark)
         return
     endif
 
-    try
-        call s:SelectionLoad(g:VselmanagerBufCName(), mark)
-    catch /.*/
-        echohl ErrorMsg | echomsg v:exception | echohl None
-        return
-    endtry
+    call s:SelectionLoad(fname, mark)
 endfun
 
 function! s:SelectionLoad(fname, mark) abort
