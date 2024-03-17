@@ -335,6 +335,27 @@ function! s:SelectionLoadNext(delta = 1) abort  "{{{
     return vmark
 endfun  "}}}
 
+" Extract selection contents  "{{{
+function! s:VCoordsYank(coords, reg) abort
+    let sv_win = winsaveview()
+    let old_coords = s:VCoordsSet(a:coords, v:false)
+    silent execute 'normal!' ('"' .. a:reg .. 'y')
+    " cleanup
+    call s:VCoordsSet(old_coords, v:false)
+    call winrestview(sv_win)
+endfun
+function! s:SelectionYank(fname, mark, reg) abort
+    call s:VCoordsYank(s:DBLookup(a:fname, a:mark), a:reg)
+endfun
+function! s:SelectionContents(fname, mark) abort
+    let sv_reg = @"
+    call s:SelectionYank(fname, mark, '"')
+    let res = @"
+    let @" = sv_reg
+    return res
+endfun
+"}}}
+
 function! s:VMarkSwapVisual(mark) abort  "{{{
     let fname = g:VselmanagerBufCName()
     let vmode = s:EnterLastVMode()
