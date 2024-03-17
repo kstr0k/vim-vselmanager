@@ -242,6 +242,39 @@ function! s:EnterLastVMode() abort  "{{{
     return vmode
 endfun  "}}}
 
+function! s:VCoordsGet(vmode = '') abort
+    return [ a:vmode ?? mode(), getpos('v')[1:3], getcurpos()[1:4] ]
+endfun
+function! s:VCoordsSet(coordinates, open_folds) abort  "{{{
+    if empty(a:coordinates)
+        throw 'trying to load inexistent vmark'
+    endif
+    let zv = a:open_folds ? '' : 'normal! zv'
+    let old_mode = mode()
+    let old_coords = s:VCoordsGet(old_mode)
+    let mode = a:coordinates[0]
+    let [ c1, c2 ] = [ a:coordinates[1], a:coordinates[2] ]
+    let vmode = s:VModeDecode(mode)  " empty if new mode not visual
+    if ! empty(vmode)
+        if s:IsVisualMode(old_mode)
+            " exit previous visual mode
+            execute "normal! \<Esc>"
+        endif
+        call setpos('.',  [ 0 ] + c1)
+        execute zv
+        execute 'normal!' vmode
+    " else ignore bogus c1 in non-visual coordinates
+    endif
+    call setpos('.', [ 0 ] + c2)
+    if v:maxcol is c2[3]
+        " ragged past-eol visual block; setpos() apparently not enough
+        normal! $
+    endif
+    execute zv
+    return old_coords
+endfun
+"}}}
+
 " Function for saving a visual selection, called from visual mode.  "{{{
 function! s:VMarkSave(mark = '') abort
     let mark = a:mark ?? s:AskVMark('save selection to: ')
@@ -261,18 +294,7 @@ function! s:SelectionSave(fname, mark) abort
     if empty(vmode)
         throw 'no previous selection for this buffer'
     endif
-
-    " retrieve selection start
-    let [startLine, startCol, startOff] = getpos('v')[1:3]
-    let startCol += startOff
-
-    " retrieve selection end
-    let [endLine, endCol, endOff] = getpos('.')[1:3]
-    let endCol += endOff
-
-    " update the dictionary
-    call s:DBAddAndSave(a:fname, a:mark, [vmode, startLine, startCol, endLine, endCol])
-
+    call s:DBAddAndSave(a:fname, a:mark, s:VCoordsGet(vmode))
 endfun
 "}}}
 
@@ -288,23 +310,8 @@ function! s:VMarkLoad(mark = '') abort
 endfun
 
 function! s:SelectionLoad(fname, mark) abort
-    if s:IsVisualMode(mode())
-        " exit previous visual mode
-        execute "normal! \<Esc>"
-    endif
     let coordinates = s:DBLookup(a:fname, a:mark)
-    if empty(coordinates)
-        throw 'selection does not exist for buffer: ' .. a:mark
-    else
-        let vmode = coordinates[0]
-        "move to start pos; enter visual mode; go to the end pos
-        " + recursively open folds, just enough to see the selection
-        execute "normal! zv"
-        call cursor(coordinates[1], coordinates[2])
-        "enter visual mode to select the rest
-        execute "normal! zv" .. s:VModeDecode(vmode)
-        call cursor(coordinates[3], coordinates[4])
-    endif
+    call s:VCoordsSet(coordinates, v:true)
 endfun
 "}}}
 
