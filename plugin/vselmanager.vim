@@ -271,7 +271,7 @@ function! s:SelectionSave(fname, mark) abort
     let endCol += endOff
 
     " update the dictionary
-    call s:DBAddAndSave(a:fname, a:mark, [startLine, startCol, endLine, endCol, vmode])
+    call s:DBAddAndSave(a:fname, a:mark, [vmode, startLine, startCol, endLine, endCol])
 
 endfun
 "}}}
@@ -296,14 +296,14 @@ function! s:SelectionLoad(fname, mark) abort
     if empty(coordinates)
         throw 'selection does not exist for buffer: ' .. a:mark
     else
-        let vmode = coordinates[4]
+        let vmode = coordinates[0]
         "move to start pos; enter visual mode; go to the end pos
         " + recursively open folds, just enough to see the selection
         execute "normal! zv"
-        call cursor(coordinates[0], coordinates[1])
+        call cursor(coordinates[1], coordinates[2])
         "enter visual mode to select the rest
         execute "normal! zv" .. s:VModeDecode(vmode)
-        call cursor(coordinates[2], coordinates[3])
+        call cursor(coordinates[3], coordinates[4])
     endif
 endfun
 "}}}
