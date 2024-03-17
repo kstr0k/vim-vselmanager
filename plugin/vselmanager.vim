@@ -356,6 +356,22 @@ function! s:SelectionContents(fname, mark) abort
 endfun
 "}}}
 
+function! s:VMarkYank(mark, reg) abort
+    let fname = g:VselmanagerBufCName()
+    let mark = s:AskVMark('yank to @' .. a:reg .. ' vmark: ', a:mark, v:true, fname)
+    if empty(mark) | return | endif
+    call s:SelectionYank(fname, mark, a:reg)
+endfun
+function! s:VMarkPut(mark, put_type) abort
+    let fname = g:VselmanagerBufCName()
+    let mark = s:AskVMark('put (' .. a:put_type .. ') vmark: ', a:mark, v:true, fname)
+    if empty(mark) | return | endif
+    let sv_reg = @"
+    call s:SelectionYank(fname, mark, '"')
+    execute 'normal!' a:put_type
+    let @" = sv_reg
+endfun
+
 function! s:VMarkSwapVisual(mark) abort  "{{{
     let fname = g:VselmanagerBufCName()
     let vmode = s:EnterLastVMode()
