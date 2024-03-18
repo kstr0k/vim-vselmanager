@@ -42,6 +42,10 @@ endif
 let s:vselmanager_unnamedPrefix = ' " unnamed:'
 "}}}
 
+function! s:NoNameCanonName(bufnum) abort
+    return s:vselmanager_unnamedPrefix .. a:bufnum
+endfun
+
 " The in-memory vmark database
 " Database organization: a dictionary  "{{{
 "  - each *key* is the full path to a file
@@ -51,10 +55,7 @@ let s:vselmanager_unnamedPrefix = ' " unnamed:'
 "           - [ mode, startPosList, endPosList ]
 "}}}
 " DB ops: {{{
-function! s:NoNameCanonName(bufnum) abort
-    return s:vselmanager_unnamedPrefix .. a:bufnum
-endfun
-function! s:DBSave() abort
+function! g:VselmanagerDBSave() abort
     call s:SaveVariable(g:vselmanagerDB, g:vselmanager_DBFile)
 endfun
 function! s:DBLoad() abort
@@ -62,47 +63,7 @@ function! s:DBLoad() abort
 endfun
 function! s:DBReset() abort
     let g:vselmanagerDB = {}
-    call s:DBSave()
-endfun
-function! s:DBLookup(fname, mark) abort
-    let fdict = g:vselmanagerDB->get(a:fname, {})
-    return fdict->get(a:mark, [])
-endfun
-function! s:DBAdd(fname, mark, val) abort
-    if !has_key(g:vselmanagerDB, a:fname)
-        let g:vselmanagerDB[a:fname] = {}
-    endif
-    let g:vselmanagerDB[a:fname][a:mark] = a:val
-endfun
-function! s:DBAddAndSave(fname, mark, val) abort
-    call s:DBAdd(a:fname, a:mark, a:val)
-    call s:DBSave()
-endfun
-function! s:DBRemove(fname, mark) abort  "{{{
-    if ! has_key(g:vselmanagerDB, a:fname)
-        return 0
-    endif
-    if empty(a:mark)
-        call remove(g:vselmanagerDB, a:fname)
-    else
-        let fdict = g:vselmanagerDB[a:fname]
-        if has_key (fdict, a:mark)
-            call remove(fdict, a:mark)
-            if empty(fdict)
-                call remove(g:vselmanagerDB, a:fname)
-            endif
-        else
-            return 0
-        endif
-    endif
-    return 1
-endfun  "}}}
-function! s:DBRemoveAndSave(fname, mark) abort
-    if s:DBRemove(a:fname, a:mark)
-        call s:DBSave()
-        return v:true
-    endif
-    return v:false
+    call g:VselmanagerDBSave()
 endfun
 function! g:VselmanagerDBInit() abort
     if filereadable(g:vselmanager_DBFile)
@@ -129,9 +90,6 @@ endfun
 function! g:VMarkNames(fname = g:VselmanagerBufCName()) abort
     return g:vselmanagerDB->get(a:fname, {})->keys()
 endfun
-function! s:MarkedFNames() abort
-    return keys(g:vselmanagerDB)
-endfun
 
 " Remove NoName buffer selections on BufDelete so they aren't persisted.  "{{{
 " WATCH OUT: during 'BufDelete', the '%'-pointed buffer might not be the one
@@ -140,7 +98,7 @@ function! s:OnBufDeleted() abort
     if empty(expand('<afile>:p'))
         " buffer being deleted is unnamed: remove its entry from dictionary:
         let entry = s:NoNameCanonName(expand('<abuf>'))
-        call s:DBRemoveAndSave(entry, '')
+        call g:vselmanager#db#RemoveAndSave(entry, '')
     endif
 endfun
 augroup Vselmanager_Cleanup
@@ -198,7 +156,7 @@ function! s:SelectionSave(fname, mark) abort
     if empty(vmode)
         throw 'no previous selection for this buffer'
     endif
-    call s:DBAddAndSave(a:fname, a:mark, g:vselmanager#vcoords#Get(vmode))
+    call g:vselmanager#db#AddAndSave(a:fname, a:mark, g:vselmanager#vcoords#Get(vmode))
 endfun
 "}}}
 
@@ -214,7 +172,7 @@ function! s:VMarkLoad(mark = '') abort
 endfun
 
 function! s:SelectionLoad(fname, mark) abort
-    let coordinates = s:DBLookup(a:fname, a:mark)
+    let coordinates = g:vselmanager#db#Lookup(a:fname, a:mark)
     call g:vselmanager#vcoords#Set(coordinates, v:true)
 endfun
 "}}}
@@ -241,7 +199,7 @@ endfun  "}}}
 
 " Extract selection contents  "{{{
 function! s:SelectionYank(fname, mark, reg) abort
-    call g:vselmanager#vcoords#Yank(s:DBLookup(a:fname, a:mark), a:reg)
+    call g:vselmanager#vcoords#Yank(g:vselmanager#db#Lookup(a:fname, a:mark), a:reg)
 endfun
 function! s:SelectionContents(fname, mark) abort
     let sv_reg = @"
@@ -294,9 +252,9 @@ function! s:VMarkSwapVisual(mark) abort  "{{{
         call s:SelectionLoad(fname, tmpmark2)
     finally
         let @" = sv_reg
-        call s:DBRemove(fname, tmpmark1)
-        call s:DBRemove(fname, tmpmark2)
-        call s:DBSave()
+        call g:vselmanager#db#Remove(fname, tmpmark1)
+        call g:vselmanager#db#Remove(fname, tmpmark2)
+        call g:VselmanagerDBSave()
     endtry
 endfun  "}}}
 
@@ -305,12 +263,12 @@ function! s:VMarkDel(mark, fname = '') abort
     let fname = g:VselmanagerBufCName(a:fname)
     let mark = s:AskVMark('remove visual mark: ', a:mark, v:true, fname)
     if ! empty(mark)
-        call s:DBRemoveAndSave(fname, mark)
+        call g:vselmanager#db#RemoveAndSave(fname, mark)
     endif
 endfun
 function! s:VMarkDelAll(fname = '') abort
     let fname = g:VselmanagerBufCName(a:fname)
-    if ! s:DBRemoveAndSave(fname, '')
+    if ! g:vselmanager#db#RemoveAndSave(fname, '')
         call g:vselmanager#vim#InfoMsg('WarningMsg', 'no selections saved for buffer ' .. fname)
     endif
 endfun
@@ -321,7 +279,7 @@ function! s:VMarkComplete(Arg, Cmd, Pos) abort
     return join(g:VMarkNames(), "\n")
 endfun
 function! s:MarkedFNameComplete(Arg, Cmd, Pos) abort
-    return join(s:MarkedFNames(), "\n")
+    return join(g:vselmanager#db#FNames(), "\n")
 endfun
 "}}}
 
