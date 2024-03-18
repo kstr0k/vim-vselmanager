@@ -179,39 +179,6 @@ function! s:TmpVMarkName(sfx) abort
     return "\<C-g>__" .. a:sfx
 endfun
 
-function! s:VCoordsGet(vmode = '') abort
-    return [ a:vmode ?? mode(), getpos('v')[1:3], getcurpos()[1:4] ]
-endfun
-function! s:VCoordsSet(coordinates, open_folds) abort  "{{{
-    if empty(a:coordinates)
-        throw 'trying to load inexistent vmark'
-    endif
-    let zv = a:open_folds ? '' : 'normal! zv'
-    let old_mode = mode()
-    let old_coords = s:VCoordsGet(old_mode)
-    let mode = a:coordinates[0]
-    let [ c1, c2 ] = [ a:coordinates[1], a:coordinates[2] ]
-    let vmode = vselmanager#vim#VModeFilter(mode)  " empty if new mode not visual
-    if ! empty(vmode)
-        if vselmanager#vim#IsVMode(old_mode)
-            " exit previous visual mode
-            execute "normal! \<Esc>"
-        endif
-        call setpos('.',  [ 0 ] + c1)
-        execute zv
-        execute 'normal!' vmode
-    " else ignore bogus c1 in non-visual coordinates
-    endif
-    call setpos('.', [ 0 ] + c2)
-    if v:maxcol is c2[3]
-        " ragged past-eol visual block; setpos() apparently not enough
-        normal! $
-    endif
-    execute zv
-    return old_coords
-endfun
-"}}}
-
 " Function for saving a visual selection, called from visual mode.  "{{{
 function! s:VMarkSave(mark = '') abort
     let mark = a:mark ?? s:AskVMark('save selection to: ')
@@ -231,7 +198,7 @@ function! s:SelectionSave(fname, mark) abort
     if empty(vmode)
         throw 'no previous selection for this buffer'
     endif
-    call s:DBAddAndSave(a:fname, a:mark, s:VCoordsGet(vmode))
+    call s:DBAddAndSave(a:fname, a:mark, g:vselmanager#vcoords#Get(vmode))
 endfun
 "}}}
 
@@ -248,7 +215,7 @@ endfun
 
 function! s:SelectionLoad(fname, mark) abort
     let coordinates = s:DBLookup(a:fname, a:mark)
-    call s:VCoordsSet(coordinates, v:true)
+    call g:vselmanager#vcoords#Set(coordinates, v:true)
 endfun
 "}}}
 
@@ -273,16 +240,8 @@ function! s:SelectionLoadNext(delta = 1) abort  "{{{
 endfun  "}}}
 
 " Extract selection contents  "{{{
-function! s:VCoordsYank(coords, reg) abort
-    let sv_win = winsaveview()
-    let old_coords = s:VCoordsSet(a:coords, v:false)
-    silent execute 'normal!' ('"' .. a:reg .. 'y')
-    " cleanup
-    call s:VCoordsSet(old_coords, v:false)
-    call winrestview(sv_win)
-endfun
 function! s:SelectionYank(fname, mark, reg) abort
-    call s:VCoordsYank(s:DBLookup(a:fname, a:mark), a:reg)
+    call g:vselmanager#vcoords#Yank(s:DBLookup(a:fname, a:mark), a:reg)
 endfun
 function! s:SelectionContents(fname, mark) abort
     let sv_reg = @"
