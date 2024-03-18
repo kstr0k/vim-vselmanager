@@ -87,10 +87,6 @@ function! g:VselmanagerBufCName(fname = '') abort
 endfun
 "}}}
 
-function! g:VMarkNames(fname = g:VselmanagerBufCName()) abort
-    return g:vselmanagerDB->get(a:fname, {})->keys()
-endfun
-
 " Remove NoName buffer selections on BufDelete so they aren't persisted.  "{{{
 " WATCH OUT: during 'BufDelete', the '%'-pointed buffer might not be the one
 " being deleted.. thus the <afile> and <abuf>
@@ -107,39 +103,9 @@ augroup Vselmanager_Cleanup
 augroup END
 "}}}
 
-" User interaction  "{{{
-" This is the function asking the user for a mark name.
-function! s:AskVMark(prompt, val0 = '', existing = v:false, fname = g:VselmanagerBufCName(), vmarks = g:VMarkNames(a:fname)) abort "{{{
-    if a:existing && empty(a:vmarks)
-        call g:vselmanager#vim#InfoMsg('WarningMsg', 'no selections saved for this buffer')
-        return ''
-    endif
-    let mark = a:val0 ?? g:vselmanager#vim#InputChar(a:prompt)
-    if "\<Tab>" is# mark
-        let mark = g:vselmanager#vim#InputFromList('', a:vmarks)
-    elseif a:existing && 0 > index(a:vmarks, mark)
-        let mark = g:vselmanager#vim#InputFromList('no such name; ' .. a:prompt, a:vmarks)
-    endif
-    if " " ># mark
-        " bail out if empty, or control char at [0]
-        return ''
-    endif
-    if a:existing && 0 > index(a:vmarks, mark)
-        call g:vselmanager#vim#InfoMsg('WarningMsg', 'buffer has no selection named: ' .. mark)
-        let mark = ''
-    endif
-    return mark
-endfun
-"}}}
-"}}}
-
-function! s:TmpVMarkName(sfx) abort
-    return "\<C-g>__" .. a:sfx
-endfun
-
 " Function for saving a visual selection, called from visual mode.  "{{{
 function! s:VMarkSave(mark = '') abort
-    let mark = a:mark ?? s:AskVMark('save selection to: ')
+    let mark = a:mark ?? g:vselmanager#lib#AskVMark('save selection to: ')
     if empty(mark)
         return
     endif
@@ -163,7 +129,7 @@ endfun
 " Function for restoring a visual selection, called from normal mode.  "{{{
 function! s:VMarkLoad(mark = '') abort
     let fname = g:VselmanagerBufCName()
-    let mark = s:AskVMark('restore selection from: ', a:mark, v:true, fname)
+    let mark = g:vselmanager#lib#AskVMark('restore selection from: ', a:mark, v:true, fname)
     if empty(mark)
         return
     endif
@@ -179,7 +145,7 @@ endfun
 
 function! s:SelectionLoadNext(delta = 1) abort  "{{{
     let fname = g:VselmanagerBufCName()
-    let vmarks = g:VMarkNames(fname)
+    let vmarks = g:vselmanager#lib#VMarkNames(fname)
     let nvmarks = len(vmarks)
     if 0 is nvmarks
         call g:vselmanager#vim#InfoMsg('WarningMsg', 'no selections defined yet for this buffer')
@@ -212,13 +178,13 @@ endfun
 
 function! s:VMarkYank(mark, reg) abort
     let fname = g:VselmanagerBufCName()
-    let mark = s:AskVMark('yank to @' .. a:reg .. ' vmark: ', a:mark, v:true, fname)
+    let mark = g:vselmanager#lib#AskVMark('yank to @' .. a:reg .. ' vmark: ', a:mark, v:true, fname)
     if empty(mark) | return | endif
     call s:SelectionYank(fname, mark, a:reg)
 endfun
 function! s:VMarkPut(mark, put_type) abort
     let fname = g:VselmanagerBufCName()
-    let mark = s:AskVMark('put (' .. a:put_type .. ') vmark: ', a:mark, v:true, fname)
+    let mark = g:vselmanager#lib#AskVMark('put (' .. a:put_type .. ') vmark: ', a:mark, v:true, fname)
     if empty(mark) | return | endif
     let sv_reg = @"
     call s:SelectionYank(fname, mark, '"')
@@ -229,7 +195,7 @@ endfun
 function! s:VMarkSwapVisual(mark) abort  "{{{
     let fname = g:VselmanagerBufCName()
     let vmode = vselmanager#vim#EnterLastVMode()
-    let mark = s:AskVMark('swap visual with vmark: ', a:mark, v:true, fname)
+    let mark = g:vselmanager#lib#AskVMark('swap visual with vmark: ', a:mark, v:true, fname)
     if empty(mark) | return | endif
 
     let tmpmark1 = s:TmpVMarkName('swap1')  " initial gv position
@@ -261,7 +227,7 @@ endfun  "}}}
 " Functions to delete marks  "{{{
 function! s:VMarkDel(mark, fname = '') abort
     let fname = g:VselmanagerBufCName(a:fname)
-    let mark = s:AskVMark('remove visual mark: ', a:mark, v:true, fname)
+    let mark = g:vselmanager#lib#AskVMark('remove visual mark: ', a:mark, v:true, fname)
     if ! empty(mark)
         call g:vselmanager#db#RemoveAndSave(fname, mark)
     endif
@@ -272,15 +238,15 @@ function! s:VMarkDelAll(fname = '') abort
         call g:vselmanager#vim#InfoMsg('WarningMsg', 'no selections saved for buffer ' .. fname)
     endif
 endfun
-"}}}
 
 " Command helpers: "{{{
 function! s:VMarkComplete(Arg, Cmd, Pos) abort
-    return join(g:VMarkNames(), "\n")
+    return join(g:vselmanager#lib#VMarkNames(), "\n")
 endfun
 function! s:MarkedFNameComplete(Arg, Cmd, Pos) abort
     return join(g:vselmanager#db#FNames(), "\n")
 endfun
+"}}}
 "}}}
 
 
