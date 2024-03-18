@@ -496,7 +496,10 @@ function! g:VselmanagerSetDefaultMaps(pfx, ignore_mapped = v:true, uniq = v:true
     call M('nv', '<C-O>',      'VselmanagerHistPrev')
     call M( 'n', 'gv',         'VselmanagerHistMR')
 endfun  "}}}
-call g:VselmanagerSetDefaultMaps('<Leader>v')
+
+if v:none isnot g:vselmanager_mapPrefix
+    call g:VselmanagerSetDefaultMaps(g:vselmanager_mapPrefix, v:false)
+endif
 "}}}
 
 " see :help write-plugin "{{{
