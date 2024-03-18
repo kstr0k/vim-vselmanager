@@ -26,14 +26,6 @@ function! s:ReadVariable(file) abort
 endfun
 "}}}
 
-function! s:NonDefaultReg() abort
-    return v:register is# '"' ? '' : v:register
-endfun
-
-function! s:ListToCompleter(ll) abort
-    return { s1, s2, s3 -> join(a:ll, "\n") }
-endfun
-
 " Options & globals: "{{{
 let g:vselmanager_option_names = [ 'g:vselmanager_DBFile', 'g:vselmanager_mapPrefix', 'g:vselmanager_exitVModeAfterMarking' ]
 
@@ -157,71 +149,25 @@ augroup Vselmanager_Cleanup
 augroup END
 "}}}
 
-let s:vmode_encode = { "\<C-v>": "\<C-v>", 'V': 'V', 'v': 'v' }
-let s:vmode_decode = s:vmode_encode
-function! s:VModeEncode(mode) abort
-    return s:vmode_encode->get(a:mode, '')
-endfun
-function! s:VModeDecode(encmode) abort
-    return s:vmode_decode->get(a:encmode, '')
-endfun
-function! s:IsVisualMode(mode) abort
-    return has_key(s:vmode_encode, a:mode)
-endfun
-
 " User interaction  "{{{
-function! s:ClearPrompt() abort
-    echon "\r\r"
-    echon
-endfun
-
-if exists('*popup_notification')
-function! s:InfoMsg(hl, msg) abort
-    call popup_notification(a:msg, { 'highlight': a:hl })
-endfun
-else
-function! s:InfoMsg(hl, msg) abort
-    execute 'echohl' a:hl | echomsg a:msg | echohl None
-endfun
-endif
-
-function! s:InputFromList(prompt, opts) abort
-    let Compl = s:ListToCompleter(a:opts)
-    call inputsave()
-    call feedkeys("\<Tab>", 't')  " 't' = as if typed
-    let ans = input(a:prompt, '', 'custom,' .. string(Compl))
-    call s:ClearPrompt()
-    call inputrestore()
-    return ans
-endfun
-
-function! s:InputChar(prompt) abort
-    echohl Question | echon a:prompt | echohl None
-    call inputsave()
-    let ch = nr2char(getchar())
-    call inputrestore()
-    call s:ClearPrompt()
-    return ch
-endfun
-
 " This is the function asking the user for a mark name.
 function! s:AskVMark(prompt, val0 = '', existing = v:false, fname = g:VselmanagerBufCName(), vmarks = g:VMarkNames(a:fname)) abort "{{{
     if a:existing && empty(a:vmarks)
-        call s:InfoMsg('WarningMsg', 'no selections saved for this buffer')
+        call g:vselmanager#vim#InfoMsg('WarningMsg', 'no selections saved for this buffer')
         return ''
     endif
-    let mark = a:val0 ?? s:InputChar(a:prompt)
+    let mark = a:val0 ?? g:vselmanager#vim#InputChar(a:prompt)
     if "\<Tab>" is# mark
-        let mark = s:InputFromList('', a:vmarks)
+        let mark = g:vselmanager#vim#InputFromList('', a:vmarks)
     elseif a:existing && 0 > index(a:vmarks, mark)
-        let mark = s:InputFromList('no such name; ' .. a:prompt, a:vmarks)
+        let mark = g:vselmanager#vim#InputFromList('no such name; ' .. a:prompt, a:vmarks)
     endif
     if " " ># mark
         " bail out if empty, or control char at [0]
         return ''
     endif
     if a:existing && 0 > index(a:vmarks, mark)
-        call s:InfoMsg('WarningMsg', 'buffer has no selection named: ' .. mark)
+        call g:vselmanager#vim#InfoMsg('WarningMsg', 'buffer has no selection named: ' .. mark)
         let mark = ''
     endif
     return mark
@@ -232,15 +178,6 @@ endfun
 function! s:TmpVMarkName(sfx) abort
     return "\<C-g>__" .. a:sfx
 endfun
-
-function! s:EnterLastVMode() abort  "{{{
-    let vmode = s:VModeEncode(mode())
-    if empty(vmode)
-        normal! gv
-        let vmode = s:VModeEncode(mode())
-    endif
-    return vmode
-endfun  "}}}
 
 function! s:VCoordsGet(vmode = '') abort
     return [ a:vmode ?? mode(), getpos('v')[1:3], getcurpos()[1:4] ]
@@ -254,9 +191,9 @@ function! s:VCoordsSet(coordinates, open_folds) abort  "{{{
     let old_coords = s:VCoordsGet(old_mode)
     let mode = a:coordinates[0]
     let [ c1, c2 ] = [ a:coordinates[1], a:coordinates[2] ]
-    let vmode = s:VModeDecode(mode)  " empty if new mode not visual
+    let vmode = vselmanager#vim#VModeFilter(mode)  " empty if new mode not visual
     if ! empty(vmode)
-        if s:IsVisualMode(old_mode)
+        if vselmanager#vim#IsVMode(old_mode)
             " exit previous visual mode
             execute "normal! \<Esc>"
         endif
@@ -290,7 +227,7 @@ function! s:VMarkSave(mark = '') abort
 endfun
 
 function! s:SelectionSave(fname, mark) abort
-    let vmode = s:EnterLastVMode()
+    let vmode = vselmanager#vim#EnterLastVMode()
     if empty(vmode)
         throw 'no previous selection for this buffer'
     endif
@@ -320,7 +257,7 @@ function! s:SelectionLoadNext(delta = 1) abort  "{{{
     let vmarks = g:VMarkNames(fname)
     let nvmarks = len(vmarks)
     if 0 is nvmarks
-        call s:InfoMsg('WarningMsg', 'no selections defined yet for this buffer')
+        call g:vselmanager#vim#InfoMsg('WarningMsg', 'no selections defined yet for this buffer')
         return ''
     endif
     if ! exists('b:visualMarks_cycle_idx') || b:visualMarks_cycle_idx > nvmarks
@@ -374,7 +311,7 @@ endfun
 
 function! s:VMarkSwapVisual(mark) abort  "{{{
     let fname = g:VselmanagerBufCName()
-    let vmode = s:EnterLastVMode()
+    let vmode = vselmanager#vim#EnterLastVMode()
     let mark = s:AskVMark('swap visual with vmark: ', a:mark, v:true, fname)
     if empty(mark) | return | endif
 
@@ -386,7 +323,7 @@ function! s:VMarkSwapVisual(mark) abort  "{{{
         normal! y
         call s:SelectionLoad(fname, mark)
         if vmode isnot mode()
-            call s:InfoMsg('WarningMsg', 'mismatched visual modes')
+            call g:vselmanager#vim#InfoMsg('WarningMsg', 'mismatched visual modes')
             call s:SelectionLoad(fname, tmpmark1)
             return
         endif
@@ -415,7 +352,7 @@ endfun
 function! s:VMarkDelAll(fname = '') abort
     let fname = g:VselmanagerBufCName(a:fname)
     if ! s:DBRemoveAndSave(fname, '')
-        call s:InfoMsg('WarningMsg', 'no selections saved for buffer ' .. fname)
+        call g:vselmanager#vim#InfoMsg('WarningMsg', 'no selections saved for buffer ' .. fname)
     endif
 endfun
 "}}}
@@ -469,7 +406,7 @@ endfun
 "}}}
 " Set the <Plug> specific maps  "{{{
 function! s:SetPlugMappings()
-    let M = { mm, plug, to, tosfx -> s:MapSIDPlugCmd(mm, plug, 'call <SID>' .. to .. '<SID>NonDefaultReg()' .. tosfx) }
+    let M = { mm, plug, to, tosfx -> s:MapSIDPlugCmd(mm, plug, 'call <SID>' .. to .. 'g:vselmanager#vim#NoUnnamedReg()' .. tosfx) }
     call M( 'v', 'VselmanagerSaveVMark',      'VMarkSave(', ')')
     call M('nv', 'VselmanagerLoadVMark',      'VMarkLoad(', ')')
     call M( 'n', 'VselmanagerDelVMark',       'VMarkDel(', ')')
