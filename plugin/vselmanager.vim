@@ -51,14 +51,15 @@ endif
 let s:vselmanager_unnamedPrefix = ' " unnamed:'
 "}}}
 
-" the big dictionary itself:
-" Its organization is simple:
+" The in-memory vmark database
+" Database organization: a dictionary  "{{{
 "  - each *key* is the full path to a file
-"  - each *value* is also a dictionary, for which:
-"      - the *key* is a mark identifier
-"      - the *value* is the position of the recorded selection, a list:
-"           - [startLine, startColumn, endLine, endColumn]
-" Dictionary ops: {{{
+"  - each *value* is a dictionary, for which:
+"      - the *key* is a vmark identifier
+"      - the *value* is a list describing the visual selection:
+"           - [ mode, startPosList, endPosList ]
+"}}}
+" DB ops: {{{
 function! s:NoNameCanonName(bufnum) abort
     return s:vselmanager_unnamedPrefix .. a:bufnum
 endfun
