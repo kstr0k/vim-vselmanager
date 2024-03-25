@@ -1,5 +1,22 @@
 # CHANGELOG
 
+## vselmanager 0.2
+
+- plugin renamed to vselmanager
+- ragged past-EOL block-visuals (using `getcurpos()` / `curswant`)
+- `<Tab>` completion for vmark names
+- register-prefixed mappings (use register names as vmark name)
+- mappings to delete / paste / yank vmarks
+- commands (with completion) for most operations
+- exchange current visual selection with saved vmark
+- crude "history" navigation (cycle forwards / backwards between vmarks)
+- changed `<Plug>` mapping names
+- no keys mapped by default (`:help g:vselmanager_mapPrefix`)
+- database file: JSON format, new name (`:help g:vselmanager_DBFile`)
+- comprehensive docs
+
+---
+
 ## visualMarks version 0.1
 
 - mark selections in unnamed buffers
