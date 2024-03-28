@@ -6,6 +6,7 @@ function! g:vselmanager#impl#VMarkSave(mark = '') abort
     endif
 
     call g:vselmanager#impl#SelectionSave(g:VselmanagerBufCName(), mark)
+    call g:VselmanagerDBSave()
 
     if g:vselmanager_exitVModeAfterMarking
         execute "normal! \<esc>"
@@ -17,7 +18,9 @@ function! g:vselmanager#impl#SelectionSave(fname, mark) abort
     if empty(vmode)
         throw 'no previous selection for this buffer'
     endif
-    call g:vselmanager#db#AddAndSave(a:fname, a:mark, g:vselmanager#vcoords#Get(vmode))
+    let vcoords = g:vselmanager#vcoords#Get(vmode)
+    call g:vselmanager#db#Add(a:fname, a:mark, vcoords)
+    return vcoords
 endfun
 "}}}
 
