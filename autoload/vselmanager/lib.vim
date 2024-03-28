@@ -1,5 +1,5 @@
 function! g:vselmanager#lib#VMarkNames(fname = g:VselmanagerBufCName()) abort
-    return g:vselmanagerDB->get(a:fname, {})->keys()
+    return reverse(sort(g:vselmanagerDB->get(a:fname, {})->keys()))
 endfun
 
 " User interaction  "{{{
