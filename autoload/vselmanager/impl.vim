@@ -32,7 +32,8 @@ function! g:vselmanager#impl#VMarkLoad(mark = '') abort
         return
     endif
 
-    call g:vselmanager#impl#SelectionLoad(fname, mark)
+    let vcoords = g:vselmanager#impl#SelectionLoad(fname, mark)
+    call g:vselmanager#db#Add(fname, '`', vcoords)
 endfun
 
 function! g:vselmanager#impl#SelectionLoad(fname, mark) abort
