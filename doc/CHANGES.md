@@ -1,5 +1,12 @@
 # CHANGELOG
 
+## vselmanager 0.2.1
+
+- plugin-managed vmarks `0` / `1` (most recently saved vmarks), `` ` `` (most recently loaded)
+- vmark completion / navigation use reverse alphabetical order
+- don't save vmarks in NoName buffers, get rid of autocmd
+- code moved to autoload/
+
 ## vselmanager 0.2
 
 - plugin renamed to vselmanager

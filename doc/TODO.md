@@ -1,7 +1,7 @@
 # TODO
 
 - vmark history in vmarks 0..9 (updated when a new vmark is saved)
-- keep track of most recently loaded vmark (in vmark `` ` `` ?)
+  - 0..1 are now supported; more names could make completion annoying
 - (?) global vmarks accessible from any file (Uppercase names)
 
 ---
