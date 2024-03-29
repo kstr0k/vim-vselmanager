@@ -38,6 +38,7 @@ endfun
 function! g:vselmanager#impl#SelectionLoad(fname, mark) abort
     let coordinates = g:vselmanager#db#Lookup(a:fname, a:mark)
     call g:vselmanager#vcoords#Set(coordinates, v:true)
+    return coordinates
 endfun
 "}}}
 
