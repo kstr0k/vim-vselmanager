@@ -1,5 +1,5 @@
 *vselmanager.txt*	Save & restore visual selections
-                                                                   Version 0.2
+                                                                 Version 0.2.1
 
 ==============================================================================
 CONTENTS                                                       *vselmanager-toc*
@@ -32,7 +32,10 @@ selection to vmark "a", type >
 To later re-select the same area, type (in normal mode): >
     \v`a
 and you'll be back in visual mode with the saved selection. Use lowercase
-letters or <Space> as vmark names (details in |vselmanager-vmark-names|).
+letters or <Space> as vmark names (|vselmanager-vmark-names|). Some names are
+automatically assigned: "`" is the most recently loaded vmark, and 0..1 are
+the most recently saved vmarks (so regardless of the vmark name saved above,
+and independently of Vim's |gv| selection, "\v`0" will restore it).
 
 Pressing <Tab> enters full name-editing mode with completion
 (|vselmanager-input-name|). Alternatively, the mappings can be prefixed with a
@@ -109,11 +112,15 @@ Names can be arbitrary strings, except that:
 - names may not contain control chars (ASCII 0-31)
 - names longer than a single char are harder to input (see below)
 
-Additionally, some names are reserved and might be automatically assigned or
-overwritten by the plugin in the future:
-- numbers are reserved for vmark history
-- names starting with an Uppercase letter are reserved for global vmarks
-- the name "`" (backtick) is reserved for the most recently loaded vmark
+------------------------------------------------------------------------------
+PLUGIN-MANAGED VMARKS                                  *vselmanager-auto-vmarks*
+
+Additionally, some names are automatically assigned / overwritten by the
+plugin:
+- the name "`" (backtick) is the most recently loaded vmark
+- numbers record the history of recently saved vmarks (currently only 0..1)
+- names starting with an Uppercase letter are reserved for global vmarks (not
+  currently implemented)
 
 ------------------------------------------------------------------------------
 INPUT A VMARK NAME                                      *vselmanager-input-name*
@@ -147,12 +154,12 @@ In the following, {vmark} is a vmark name (|vselmanager-vmark-names|).
 *:VselmanagerHistForward* {delta}                 *vselmanager-history-navigation*
 :[count]VselmanagerHistNext                               *:VselmanagerHistNext*
 :[count]VselmanagerHistPrev                               *:VselmanagerHistPrev*
-    Navigate forwards / backwards through vmarks in some unspecified order; it
-    may change if vmarks are added / deleted, and in-between Vim sessions, but
-    is otherwise stable. {delta} = 0 corresponds to the vmark most recently
-    loaded by "Hist" commands, -1 to the previous one and +1 to the next one.
-    {delta} can be any |expr|. The Next / Prev commands take a constant [count]
-    instead, which defaults to 1. It can precede or follow the command.
+    Navigate forwards / backwards through vmarks in alphabetical order; the
+    navigation pointer is not persisted, and may reset when you add / remove
+    vmarks. {delta} = 0 corresponds to the vmark most recently loaded by
+    "Hist" commands, -1 to the previous one and +1 to the next one. {delta}
+    can be any |expr|. The Next / Prev commands take a constant [count] instead;
+    it defaults to 1 and can precede or follow the command.
 
 *:VselmanagerDel*  {vmark}
     Remove a previously saved vmark
