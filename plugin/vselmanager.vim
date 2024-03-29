@@ -48,7 +48,7 @@ endif
 if !exists('g:vselmanager_exitVModeAfterMarking')
     let g:vselmanager_exitVModeAfterMarking = 1
 endif
-let s:vselmanager_unnamedPrefix = 'unnamed:'
+let s:vselmanager_unnamedPrefix = ' " unnamed:'
 "}}}
 
 " the big dictionary itself:
