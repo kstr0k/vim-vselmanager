@@ -56,7 +56,8 @@ endfun
 "}}}
 " DB ops: {{{
 function! g:VselmanagerDBSave() abort
-    call s:SaveVariable(g:vselmanagerDB, g:vselmanager_DBFile)
+    " filter out vmarks for NoName buffers
+    call s:SaveVariable(filter(copy(g:vselmanagerDB), "v:key !~ ('\\V' .. s:vselmanager_unnamedPrefix)"), g:vselmanager_DBFile)
 endfun
 function! s:DBLoad() abort
     let g:vselmanagerDB = s:ReadVariable(g:vselmanager_DBFile)
@@ -85,22 +86,6 @@ call g:VselmanagerDBInit()
 function! g:VselmanagerBufCName(fname = '') abort
     return a:fname ?? expand('%:p') ?? s:NoNameCanonName(bufnr())
 endfun
-"}}}
-
-" Remove NoName buffer selections on BufDelete so they aren't persisted.  "{{{
-" WATCH OUT: during 'BufDelete', the '%'-pointed buffer might not be the one
-" being deleted.. thus the <afile> and <abuf>
-function! s:OnBufDeleted() abort
-    if empty(expand('<afile>:p'))
-        " buffer being deleted is unnamed: remove its entry from dictionary:
-        let entry = s:NoNameCanonName(expand('<abuf>'))
-        call g:vselmanager#db#RemoveAndSave(entry, '')
-    endif
-endfun
-augroup Vselmanager_Cleanup
-    autocmd!
-    autocmd BufDelete * call s:OnBufDeleted()
-augroup END
 "}}}
 
 " Command helpers: "{{{
