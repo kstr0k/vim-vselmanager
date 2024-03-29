@@ -38,7 +38,10 @@ To later re-select the same area, type (in normal mode):
     \v`a
 </pre>
 and you'll be back in visual mode with the saved selection. Use lowercase
-letters or <span class="s"><code>&lt;Space&gt;</code></span> as vmark names (details in <a href="#vselmanager-vmark-names" class="l"><em>vselmanager-vmark-names</em></a>).
+letters or <span class="s"><code>&lt;Space&gt;</code></span> as vmark names (<a href="#vselmanager-vmark-names" class="l"><em>vselmanager-vmark-names</em></a>). Some names are
+automatically assigned: `` ` `` is the most recently loaded vmark, and 0..1 are
+the most recently saved vmarks (so regardless of the vmark name saved above,
+and independently of Vim's `gv` selection, `` \v`0 `` will restore it).
 
 Pressing <span class="s"><code>&lt;Tab&gt;</code></span> enters full name-editing mode with completion
 (<a href="#vselmanager-input-name" class="l"><em>vselmanager-input-name</em></a>). Alternatively, the mappings can be prefixed with a
@@ -114,11 +117,13 @@ Names can be arbitrary strings, except that:
 - names may not contain control chars (ASCII 0-31)
 - names longer than a single char are harder to input (see below)
 
-Additionally, some names are reserved and might be automatically assigned or
-overwritten by the plugin in the future:
-- numbers are reserved for vmark history
-- names starting with an Uppercase letter are reserved for global vmarks
-- the name "`" (backtick) is reserved for the most recently loaded vmark
+### <span class="c">PLUGIN-MANAGED VMARKS                          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><a name="vselmanager-auto-vmarks" href="#vselmanager-auto-vmarks" class="t"><sub><sup><em>vselmanager-auto-vmarks</em></sup></sup></a>
+Additionally, some names are automatically assigned / overwritten by the
+plugin:
+- the name `` ` `` (backtick) is the most recently loaded vmark
+- numbers record the history of recently saved vmarks (currently only 0..1)
+- names starting with an Uppercase letter are reserved for global vmarks (not
+  currently implemented)
 
 ### <span class="c">INPUT A VMARK NAME                               &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</span><a name="vselmanager-input-name" href="#vselmanager-input-name" class="t"><sub><sup><em>vselmanager-input-name</em></sup></sup></a>
 
@@ -149,12 +154,12 @@ In the following, `{vmark}` is a vmark name (<a href="#vselmanager-vmark-names" 
 <a name="x3AxVselmanagerHistForward" href="#x3AxVselmanagerHistForward" class="t"><em>:VselmanagerHistForward</em></a> `{delta}`           &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a name="vselmanager-history-navigation" href="#vselmanager-history-navigation" class="t"><em>vselmanager-history-navigation</em></a> <br>
 `:[count]VselmanagerHistNext`                         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a name="x3AxVselmanagerHistNext" href="#x3AxVselmanagerHistNext" class="t"><em>:VselmanagerHistNext</em></a> <br>
 `:[count]VselmanagerHistPrev`                         &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<a name="x3AxVselmanagerHistPrev" href="#x3AxVselmanagerHistPrev" class="t"><em>:VselmanagerHistPrev</em></a> <br>
-    Navigate forwards / backwards through vmarks in some unspecified order; it
-    may change if vmarks are added / deleted, and in-between Vim sessions, but
-    is otherwise stable. `{delta}` = 0 corresponds to the vmark most recently
+    Navigate forwards / backwards through vmarks in alphabetical
+    order; the navigation pointer is not persisted, and may reset when you add
+    or remove vmarks. `{delta}` = 0 corresponds to the vmark most recently
     loaded by "Hist" commands, -1 to the previous one and +1 to the next one.
     `{delta}` can be any <span class="l"><em>expr</em></span>. The Next / Prev commands take a constant `[count]`
-    instead, which defaults to 1. It can precede or follow the command.
+    instead; it defaults to 1 and can precede or follow the command.
 
 <a name="x3AxVselmanagerDel" href="#x3AxVselmanagerDel" class="t"><em>:VselmanagerDel</em></a>  `{vmark}` <br>
     Remove a previously saved vmark
