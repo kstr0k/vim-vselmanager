@@ -113,6 +113,8 @@ endfun
 "}}}
 
 " Commands: "{{{
+command! VselmanagerConfig call g:vselmanager#config#ShowBuf()
+
 command! -nargs=1 -complete=custom,s:VMarkComplete VselmanagerLoad call g:vselmanager#impl#VMarkLoad(<q-args>)
 command! -nargs=1 -complete=custom,s:VMarkComplete VselmanagerSave call g:vselmanager#impl#VMarkSave(<q-args>)
 command! -nargs=1 -complete=custom,s:VMarkComplete VselmanagerPutA call g:vselmanager#impl#VMarkPut(<q-args>, 'p')
