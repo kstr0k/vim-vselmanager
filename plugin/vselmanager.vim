@@ -35,6 +35,8 @@ function! s:ListToCompleter(ll) abort
 endfun
 
 " Options & globals: "{{{
+let g:vselmanager_option_names = [ 'g:vselmanager_DBFile', 'g:vselmanager_mapPrefix', 'g:vselmanager_exitVModeAfterMarking' ]
+
 " Database location
 if !exists('g:vselmanager_DBFile')
     let g:vselmanager_DBFile = fnamemodify('~/', ':p') .. '.vim-vselmanager.json'
