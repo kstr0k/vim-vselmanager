@@ -7,6 +7,10 @@ function! g:vselmanager#impl#VMarkSave(mark = '') abort
 
     let fname = g:VselmanagerBufCName()
     let vcoords = g:vselmanager#impl#SelectionSave(fname, mark)
+    let vcoords1 = g:vselmanager#db#Lookup(fname, '0')
+    if len(vcoords1)
+        call g:vselmanager#db#Add(fname, '1', vcoords1)
+    endif
     call g:vselmanager#db#Add(fname, '0', vcoords)
     call g:VselmanagerDBSave()
 
