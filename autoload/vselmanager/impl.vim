@@ -5,7 +5,9 @@ function! g:vselmanager#impl#VMarkSave(mark = '') abort
         return
     endif
 
-    call g:vselmanager#impl#SelectionSave(g:VselmanagerBufCName(), mark)
+    let fname = g:VselmanagerBufCName()
+    let vcoords = g:vselmanager#impl#SelectionSave(fname, mark)
+    call g:vselmanager#db#Add(fname, '0', vcoords)
     call g:VselmanagerDBSave()
 
     if g:vselmanager_exitVModeAfterMarking
